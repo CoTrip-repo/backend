@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.cotrip.api.user.repository.UserMapper">
+
+    <select id="findByEmail" resultType="User">
+        SELECT *
+        FROM users
+        WHERE email = #{email}
+    </select>
+
+    <select id="findById" resultType="User">
+        SELECT *
+        FROM users
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insertUser" parameterType="User" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO users (email, password, nickname, loginType)
+        VALUES (#{email}, #{password}, #{nickname}, COALESCE(#{loginType}, 'SYSTEM'))
+    </insert>
+
+    <update id="deleteByUserId" parameterType="Long">
+        UPDATE users
+        SET deleted_at = NOW(),
+            email = CONCAT('deletedUser_', id, '_', UNIX_TIMESTAMP(NOW())),
+            nickname = CONCAT('deletedUser_', id, '_', UNIX_TIMESTAMP(NOW())),
+            password = NULL
+        WHERE id = #{userId}
+          AND deleted_at IS NULL
+    </update>
+
+
+    <update id="updatePassword" parameterType="map">
+        UPDATE users
+        SET password = #{password}
+        WHERE email = #{email}
+    </update>
+
+    <update id="updateNickname" parameterType="map">
+        UPDATE users
+        SET nickname = #{nickname}
+        WHERE email = #{email}
+    </update>
+
+    <select id="existsNickname" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+            FROM users
+            WHERE nickname = #{nickname}
+        )
+    </select>
+
+    <select id="existsEmail" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+            FROM users
+            WHERE email = #{email}
+        )
+    </select>
+
+
+
+</mapper>

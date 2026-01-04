@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.cotrip.api.attraction.repository.AttractionMapper">
+
+    <!-- 관광지 검색 (커서 기반 페이지네이션) -->
+    <select id="searchAttractions"
+            parameterType="com.ssafy.cotrip.api.attraction.dto.AttractionCondition"
+            resultType="com.ssafy.cotrip.api.attraction.dto.response.AttractionDto">
+
+        SELECT
+        a.id,
+        a.content_id,
+        ct.content_type_name AS contentTypeName,
+        a.title,
+        a.image1,
+        a.image2,
+        a.map_level,
+        a.latitude,
+        a.longitude,
+        a.tel,
+        a.addr1,
+        a.addr2,
+        a.homepage,
+        a.overview
+        FROM attractions a
+        LEFT JOIN content_types ct
+        ON a.content_type_id = ct.id
+
+        <where>
+            <if test="contentTypeId != null">
+                AND a.content_type_id = #{contentTypeId}
+            </if>
+
+            <if test="sidoId != null">
+                AND a.sido_id = #{sidoId}
+            </if>
+
+            <if test="gugunId != null">
+                AND a.gugun_id = #{gugunId}
+            </if>
+
+            <if test="keyword != null and keyword != ''">
+                AND (
+                a.title LIKE CONCAT('%', #{keyword}, '%')
+                OR a.overview LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+
+            <if test="cursorId != null">
+                AND a.id &gt; #{cursorId}
+            </if>
+        </where>
+
+        ORDER BY a.id
+        LIMIT #{size}
+    </select>
+
+    <!-- 모든 콘텐츠 타입 조회 -->
+    <select id="findAllContentTypes" resultType="ContentType">
+        SELECT *
+        FROM content_types;
+    </select>
+
+    <!-- 모든 시/도 조회 -->
+    <select id="findAllSidos" resultType="Sido">
+        SELECT *
+        FROM sidos;
+    </select>
+
+    <!-- 시/도에 있는 구/군 조회 -->
+    <select id="findAllGugunsBySidoId" resultType="Gugun" parameterType="Long">
+        SELECT *
+        FROM guguns
+        WHERE sido_id = #{sidoId};
+    </select>
+
+    <!-- 관광지 이름 부분 검색 (커서 기반 페이지네이션) -->
+    <select id="findAllByName"
+            parameterType="map"
+            resultType="com.ssafy.cotrip.api.attraction.dto.response.AttractionDto">
+
+        SELECT
+        a.id,
+        a.content_id,
+        ct.content_type_name AS contentTypeName,
+        a.title,
+        a.image1,
+        a.image2,
+        a.map_level,
+        a.latitude,
+        a.longitude,
+        a.tel,
+        a.addr1,
+        a.addr2,
+        a.homepage,
+        a.overview
+        FROM attractions a
+        LEFT JOIN content_types ct
+        ON a.content_type_id = ct.id
+
+        <where>
+            <!-- 이름 부분 검색 -->
+            <if test="name != null and name != ''">
+                AND a.title LIKE CONCAT('%', #{name}, '%')
+            </if>
+
+            <!-- 커서 기반 페이징 -->
+            <if test="cursorId != null">
+                AND a.id &gt; #{cursorId}
+            </if>
+        </where>
+
+        ORDER BY a.id
+        LIMIT #{size}
+    </select>
+
+    <!-- 카카오 ID로 장소 조회 -->
+    <select id="findByKakaoId" resultType="com.ssafy.cotrip.domain.Attraction" parameterType="String">
+        SELECT *
+        FROM attractions
+        WHERE kakao_id = #{kakaoId}
+    </select>
+
+    <!-- 도로명 주소로 장소 조회 (유연한 매칭) -->
+    <!-- 도로명 주소로 장소 조회 (유연한 매칭) -->
+    <select id="findByRoadAddress" resultType="com.ssafy.cotrip.domain.Attraction" parameterType="String">
+        SELECT *
+        FROM attractions
+        WHERE
+            SUBSTRING_INDEX(addr1, ' ', 1) = SUBSTRING_INDEX(#{roadAddress}, ' ', 1)
+          AND TRIM(SUBSTRING_INDEX(addr1, ' ', -2)) = TRIM(SUBSTRING_INDEX(#{roadAddress}, ' ', -2))
+        LIMIT 1
+    </select>
+
+    <!-- 카카오 장소 저장 (location POINT 컬럼 포함) -->
+    <insert id="insertKakaoAttraction" parameterType="com.ssafy.cotrip.domain.Attraction" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO attractions (
+            kakao_id,
+            title,
+            latitude,
+            longitude,
+            location,
+            tel,
+            addr1,
+            addr2,
+            content_type_id,
+            gugun_id,
+            sido_id
+        ) VALUES (
+            #{kakaoId},
+            #{title},
+            #{latitude},
+            #{longitude},
+            ST_GeomFromText(CONCAT('POINT(', #{latitude}, ' ', #{longitude}, ')'), 4326),
+            #{tel},
+            #{addr1},
+            #{addr2},
+            1,  <!-- 기본 content_type_id (관광지) -->
+            #{gugunId},
+            #{sidoId}
+        )
+    </insert>
+
+    <!-- 주소 기반 시도 코드 조회 -->
+    <select id="findSidoCodeByName" resultType="Integer">
+        SELECT id
+        FROM sidos
+        WHERE sido_name LIKE CONCAT(#{name}, '%')
+        LIMIT 1
+    </select>
+
+    <!-- 주소 기반 구군 코드 조회 -->
+    <select id="findGugunCodeByName" resultType="Integer">
+        SELECT id
+        FROM guguns
+        WHERE gugun_name LIKE CONCAT(#{name}, '%')
+          AND sido_id = #{sidoCode}
+        LIMIT 1
+    </select>
+
+    <!-- AI 카테고리 업데이트 -->
+    <update id="updateContentType" parameterType="map">
+        UPDATE attractions
+        SET content_type_id = #{contentTypeId},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{attractionId}
+          AND deleted_at IS NULL
+    </update>
+
+</mapper>

@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.cotrip.api.expense.repository.ExpenseMapper">
+
+    <!-- 참가자 전체 -->
+    <select id="selectAllParticipantUserIds" resultType="long">
+        SELECT user_id
+        FROM plan_participants
+        WHERE plan_id = #{planId}
+          AND deleted_at IS NULL
+        ORDER BY id ASC
+    </select>
+
+    <select id="existsPlanParticipant" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1
+            FROM plan_participants
+            WHERE plan_id = #{planId}
+              AND user_id = #{userId}
+              AND deleted_at IS NULL
+        )
+    </select>
+
+    <!-- 개인별 row insert -->
+    <insert id="insertExpenses">
+        INSERT INTO expense (plan_id, user_id, planday_id, group_id, amount, category, description)
+        VALUES
+        <foreach collection="rows" item="r" separator=",">
+            (#{r.planId}, #{r.userId}, #{r.plandayId}, #{r.groupId}, #{r.amount}, #{r.category}, #{r.description})
+        </foreach>
+    </insert>
+
+    <!-- row 단위 soft delete -->
+    <update id="softDeleteExpenseById">
+        UPDATE expense
+        SET deleted_at = CURRENT_TIMESTAMP
+        WHERE id = #{expenseId}
+          AND plan_id = #{planId}
+          AND deleted_at IS NULL
+    </update>
+
+    <!-- 목록: row 단위 (닉네임 join 포함) -->
+    <select id="selectExpenseRowsByPlanId"
+            resultType="com.ssafy.cotrip.api.expense.repository.ExpenseMapper$ExpenseRow">
+        SELECT
+            e.id AS id,
+            e.planday_id AS plandayId,
+            pd.date AS date,
+            e.group_id AS groupId,
+            e.category AS category,
+            e.description AS description,
+            e.amount AS amount,
+            e.user_id AS userId,
+            u.nickname AS nickname
+        FROM expense e
+                 JOIN users u ON u.id = e.user_id
+                 JOIN plandays pd ON pd.id = e.planday_id
+        WHERE e.plan_id = #{planId}
+          AND e.deleted_at IS NULL
+        ORDER BY pd.date DESC, e.group_id DESC, e.id DESC
+    </select>
+
+    <select id="countParticipants" resultType="int">
+        SELECT COUNT(*)
+        FROM plan_participants
+        WHERE plan_id = #{planId}
+          AND deleted_at IS NULL
+    </select>
+
+    <select id="selectGroupIdsByPlanId" resultType="string">
+        SELECT DISTINCT e.group_id
+        FROM expense e
+        JOIN plandays pd ON pd.id = e.planday_id
+        WHERE e.plan_id = #{planId}
+        AND e.deleted_at IS NULL
+        <if test="cursor != null and cursor != ''">
+            AND e.group_id &lt; #{cursor}
+        </if>
+        ORDER BY pd.date DESC, e.group_id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectExpenseRowsByGroupIds"
+            resultType="com.ssafy.cotrip.api.expense.repository.ExpenseMapper$ExpenseRow">
+        SELECT
+        e.id AS id,
+        e.planday_id AS plandayId,
+        pd.date AS date,
+        e.group_id AS groupId,
+        e.category AS category,
+        e.description AS description,
+        e.amount AS amount,
+        e.user_id AS userId,
+        u.nickname AS nickname,
+        e.created_at AS createdAt
+        FROM expense e
+        JOIN users u ON u.id = e.user_id
+        JOIN plandays pd ON pd.id = e.planday_id
+        WHERE e.plan_id = #{planId}
+        AND e.deleted_at IS NULL
+        AND e.group_id IN
+        <foreach collection="groupIds" item="gid" open="(" close=")" separator=",">
+            #{gid}
+        </foreach>
+        ORDER BY pd.date DESC, e.created_at DESC, e.group_id DESC, e.id DESC
+    </select>
+
+    <select id="selectGroupPage"
+            resultType="com.ssafy.cotrip.api.expense.repository.ExpenseMapper$GroupPageRow">
+        SELECT
+        e.group_id AS groupId,
+        pd.date AS date,
+        MAX(e.created_at) AS groupCreatedAt
+        FROM expense e
+        JOIN plandays pd ON pd.id = e.planday_id
+        WHERE e.plan_id = #{planId}
+        AND e.deleted_at IS NULL
+        GROUP BY e.group_id, pd.date
+        <if test="cursorDate != null and cursorDate != ''">
+            HAVING
+            (pd.date &lt; #{cursorDate})
+            OR (pd.date = #{cursorDate} AND MAX(e.created_at) &lt; #{cursorCreatedAt})
+            OR (pd.date = #{cursorDate} AND MAX(e.created_at) = #{cursorCreatedAt} AND e.group_id &lt; #{cursorGroupId})
+        </if>
+        ORDER BY pd.date DESC, groupCreatedAt DESC, e.group_id DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 정산 결과 -->
+    <select id="selectTotalAmountByPlanId" resultType="int">
+        SELECT COALESCE(SUM(amount), 0)
+        FROM expense
+        WHERE plan_id = #{planId}
+          AND deleted_at IS NULL
+    </select>
+
+    <select id="selectUserBurdenByPlanId"
+            resultType="com.ssafy.cotrip.api.expense.repository.ExpenseMapper$UserBurdenRow">
+        SELECT u.id AS userId,
+               u.nickname AS nickname,
+               COALESCE(SUM(e.amount), 0) AS burdenAmount
+        FROM plan_participants pp
+                 JOIN users u ON u.id = pp.user_id
+                 LEFT JOIN expense e
+                           ON e.plan_id = pp.plan_id
+                               AND e.user_id = pp.user_id
+                               AND e.deleted_at IS NULL
+        WHERE pp.plan_id = #{planId}
+          AND pp.deleted_at IS NULL
+        GROUP BY u.id, u.nickname
+        ORDER BY u.id
+    </select>
+
+    <select id="selectGroupIdByExpenseId" resultType="string">
+        SELECT group_id
+        FROM expense
+        WHERE id = #{expenseId}
+          AND plan_id = #{planId}
+          AND deleted_at IS NULL
+    </select>
+
+    <update id="softDeleteByGroupId">
+        UPDATE expense
+        SET deleted_at = CURRENT_TIMESTAMP
+        WHERE plan_id = #{planId}
+          AND group_id = #{groupId}
+          AND deleted_at IS NULL
+    </update>
+
+</mapper>

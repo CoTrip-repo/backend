@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.cotrip.api.plan.repository.PlanDayAttractionMapper">
+
+    <insert id="insert" parameterType="PlanDayAttraction" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO planday_attractions (planday_id, attraction_id, time, content)
+        VALUES (#{plandayId}, #{attractionId}, #{time}, #{content})
+    </insert>
+
+    <update id="update" parameterType="PlanDayAttraction">
+        UPDATE planday_attractions
+        SET attraction_id = #{attractionId},
+            time = #{time},
+            content = #{content},
+            updated_at = NOW()
+        WHERE id = #{id}
+          AND deleted_at IS NULL
+    </update>
+
+    <update id="delete" parameterType="Long">
+        UPDATE planday_attractions
+        SET deleted_at = NOW()
+        WHERE id = #{id}
+          AND deleted_at IS NULL
+    </update>
+
+    <select id="findById" resultType="PlanDayAttraction">
+        SELECT pda.*, 
+               a.title as attractionTitle,
+               a.latitude as latitude,
+               a.longitude as longitude,
+               a.addr1 as addr1
+        FROM planday_attractions pda
+        LEFT JOIN attractions a ON pda.attraction_id = a.id
+        WHERE pda.id = #{id}
+          AND pda.deleted_at IS NULL
+    </select>
+
+    <select id="findByPlanDayId" resultType="PlanDayAttraction">
+        SELECT pda.*, 
+               a.title as attractionTitle,
+               a.latitude as latitude,
+               a.longitude as longitude,
+               a.addr1 as addr1
+        FROM planday_attractions pda
+        LEFT JOIN attractions a ON pda.attraction_id = a.id
+        WHERE pda.planday_id = #{planDayId}
+          AND pda.deleted_at IS NULL
+        ORDER BY pda.time ASC
+    </select>
+
+    <select id="existsByPlanDayIdAndTime" resultType="boolean">
+        SELECT COUNT(*) > 0
+        FROM planday_attractions
+        WHERE planday_id = #{planDayId}
+          AND time = #{time}
+          AND deleted_at IS NULL
+        <if test="excludeId != null">
+            AND id != #{excludeId}
+        </if>
+    </select>
+
+    <select id="countByPlanDayId" resultType="int">
+        SELECT COUNT(*)
+        FROM planday_attractions
+        WHERE planday_id = #{planDayId}
+          AND deleted_at IS NULL
+    </select>
+
+</mapper>

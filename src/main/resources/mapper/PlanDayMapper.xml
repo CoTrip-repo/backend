@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.cotrip.api.plan.repository.PlanDayMapper">
+
+    <insert id="insert" parameterType="PlanDay" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO plandays (plan_id, day, date)
+        VALUES (#{planId}, #{day}, #{date})
+    </insert>
+
+    <update id="update" parameterType="PlanDay">
+        UPDATE plandays
+        SET day = #{day},
+            date = #{date},
+            updated_at = NOW()
+        WHERE id = #{id}
+          AND deleted_at IS NULL
+    </update>
+
+    <update id="delete" parameterType="Long">
+        UPDATE plandays
+        SET deleted_at = NOW()
+        WHERE id = #{id}
+          AND deleted_at IS NULL
+    </update>
+
+    <select id="findById" resultType="PlanDay">
+        SELECT *
+        FROM plandays
+        WHERE id = #{id}
+          AND deleted_at IS NULL
+    </select>
+
+    <select id="findByPlanId" resultType="PlanDay">
+        SELECT *
+        FROM plandays
+        WHERE plan_id = #{planId}
+          AND deleted_at IS NULL
+        ORDER BY date ASC
+    </select>
+
+</mapper>

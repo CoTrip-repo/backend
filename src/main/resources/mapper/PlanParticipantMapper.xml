@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.cotrip.api.plan.repository.PlanParticipantMapper">
+
+    <insert id="insert" parameterType="PlanParticipant" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO plan_participants (plan_id, user_id, created_at)
+        VALUES (#{planId}, #{userId}, NOW())
+        ON DUPLICATE KEY UPDATE
+            deleted_at = NULL,
+            updated_at = NOW()
+    </insert>
+
+    <update id="delete" parameterType="Long">
+        UPDATE plan_participants
+        SET deleted_at = NOW()
+        WHERE plan_id = #{planId}
+          AND deleted_at IS NULL
+    </update>
+
+    <update id="deleteByPlanIdAndUserId">
+        UPDATE plan_participants
+        SET deleted_at = NOW()
+        WHERE plan_id = #{planId}
+          AND user_id = #{userId}
+          AND deleted_at IS NULL
+    </update>
+
+    <select id="existsByPlanIdAndUserId" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+            FROM plan_participants
+            WHERE plan_id = #{planId}
+              AND user_id = #{userId}
+              AND deleted_at IS NULL
+        )
+    </select>
+
+    <select id="findUsersByPlanId" resultType="User">
+        SELECT u.*
+        FROM users u
+        INNER JOIN plan_participants pp ON u.id = pp.user_id
+        WHERE pp.plan_id = #{planId}
+          AND pp.deleted_at IS NULL
+        ORDER BY u.id
+    </select>
+
+</mapper>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.cotrip.api.user.repository.OAuthMapper">
+
+    <select id="findByProviderAndProviderId" resultType="OAuth">
+        SELECT *
+        FROM oauth
+        WHERE provider = #{provider}
+          AND provider_id = #{providerId}
+    </select>
+
+    <insert id="insertOAuth" parameterType="OAuth">
+        INSERT INTO oauth (provider, provider_id, user_id)
+        VALUES (#{provider}, #{providerId}, #{userId})
+    </insert>
+
+    <select id="existsProviderId" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+            FROM oauth
+            WHERE provider_id = #{sub}
+        )
+    </select>
+
+    <delete id="deleteByUserId" parameterType="Long">
+        DELETE FROM oauth
+        WHERE user_id = #{userId}
+    </delete>
+
+</mapper>

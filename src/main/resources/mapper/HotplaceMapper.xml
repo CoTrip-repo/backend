@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.cotrip.api.hotplace.repository.HotplaceMapper">
+
+    <!-- PostDto 매핑 -->
+    <resultMap id="PostDtoMap" type="com.ssafy.cotrip.api.hotplace.dto.response.PostDto">
+        <constructor>
+            <idArg column="id"                 javaType="long"/>
+            <arg   column="created_at"         javaType="java.time.LocalDate"/>
+            <arg   column="title"              javaType="string"/>
+            <arg   column="content"            javaType="string"/>
+            <arg   column="attraction_id"      javaType="long"/>
+            <arg   column="attraction_name"    javaType="string"/>
+            <arg   column="attraction_address" javaType="string"/>
+            <arg   column="user_id"            javaType="long"/>
+            <arg   column="user_name"          javaType="string"/>
+            <!-- 10번째: imageUrls (List<String>) -->
+            <arg   column="{postId=id}"
+                   javaType="java.util.List"
+                   select="findImageUrlsByPostId"/>
+        </constructor>
+    </resultMap>
+
+    <!-- 최근 게시글 조회 -->
+    <select id="findRecentPosts"
+            resultMap="PostDtoMap"
+            parameterType="map">
+        SELECT
+        p.id               AS id,
+        DATE(p.created_at) AS created_at,
+        p.title            AS title,
+        p.content          AS content,
+        a.id               AS attraction_id,
+        a.title            AS attraction_name,
+        a.addr1            AS attraction_address,
+        u.id               AS user_id,
+        u.nickname         AS user_name
+        FROM posts p
+        JOIN attractions a ON p.attraction_id = a.id
+        JOIN users u       ON p.user_id       = u.id
+        <where>
+            p.deleted_at IS NULL
+            <if test="cursorId != null">
+                AND p.id &lt; #{cursorId}
+            </if>
+        </where>
+        ORDER BY p.id DESC
+        LIMIT #{size}
+    </select>
+
+    <!-- 특정 게시글 이미지 목록 조회 -->
+    <select id="findImageUrlsByPostId" resultType="string">
+        SELECT
+            pi.url
+        FROM post_images pi
+        WHERE pi.post_id    = #{postId}
+          AND pi.deleted_at IS NULL
+        ORDER BY pi.idx
+    </select>
+
+    <!-- 게시글 단건 조회 -->
+    <select id="findPostById"
+            parameterType="long"
+            resultMap="PostDtoMap">
+        SELECT
+            p.id               AS id,
+            DATE(p.created_at) AS created_at,
+            p.title            AS title,
+            p.content          AS content,
+            a.id               AS attraction_id,
+            a.title            AS attraction_name,
+            a.addr1            AS attraction_address,
+            u.id               AS user_id,
+            u.nickname         AS user_name
+        FROM posts p
+                 JOIN attractions a ON p.attraction_id = a.id
+                 JOIN users u       ON p.user_id       = u.id
+        WHERE p.id = #{postId}
+          AND p.deleted_at IS NULL
+        LIMIT 1
+    </select>
+
+    <!-- 특정 유저의 게시글 목록 조회 -->
+    <select id="findByUserId"
+            resultMap="PostDtoMap"
+            parameterType="map">
+        SELECT
+        p.id               AS id,
+        DATE(p.created_at) AS created_at,
+        p.title            AS title,
+        p.content          AS content,
+        a.id               AS attraction_id,
+        a.title            AS attraction_name,
+        a.addr1            AS attraction_address,
+        u.id               AS user_id,
+        u.nickname         AS user_name
+        FROM posts p
+        JOIN users u       ON p.user_id       = u.id
+        JOIN attractions a ON p.attraction_id = a.id
+        <where>
+            p.deleted_at IS NULL
+            AND p.user_id = #{userId}
+            <if test="cursorId != null">
+                AND p.id &lt; #{cursorId}
+            </if>
+        </where>
+        ORDER BY p.id DESC
+        LIMIT #{size}
+    </select>
+
+    <!-- 게시글 저장 -->
+    <insert id="save" parameterType="com.ssafy.cotrip.domain.Post"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO posts
+        (
+            title,
+            content,
+            user_id,
+            attraction_id,
+            created_at,
+            updated_at
+        )
+        VALUES
+            (
+                #{title},
+                #{content},
+                #{userId},
+                #{attractionId},
+                NOW(),
+                NOW()
+            )
+    </insert>
+
+    <!-- 게시글 이미지 저장 -->
+    <insert id="saveImages">
+        INSERT INTO post_images
+        (
+            post_id,
+            idx,
+            url,
+            created_at
+        )
+        VALUES
+        <foreach collection="imageUrls" item="url" index="idx" separator=",">
+            (
+                #{postId},
+                #{idx},
+                #{url},
+                NOW()
+            )
+        </foreach>
+    </insert>
+
+    <!-- 게시글 수정 -->
+    <update id="update">
+        UPDATE posts
+        SET
+            title = #{post.title},
+            content = #{post.content},
+            attraction_id = #{post.attractionId},
+            updated_at = NOW()
+        WHERE id = #{post.id}
+          AND deleted_at IS NULL
+    </update>
+
+    <!-- 기존 이미지 전체 삭제 (hard delete) -->
+    <delete id="hardDeleteImages">
+        DELETE FROM post_images
+        WHERE post_id = #{postId}
+    </delete>
+
+    <!-- 기존 이미지 전체 soft delete -->
+    <update id="softDeleteImages">
+        UPDATE post_images
+        SET deleted_at = NOW()
+        WHERE post_id = #{postId}
+          AND deleted_at IS NULL
+    </update>
+
+    <!-- 게시글 soft delete (작성자 본인만) -->
+    <update id="delete">
+        UPDATE posts
+        SET
+            deleted_at = NOW(),
+            updated_at = NOW()
+        WHERE id = #{postId}
+          AND user_id = #{userId}
+          AND deleted_at IS NULL
+    </update>
+
+</mapper>
