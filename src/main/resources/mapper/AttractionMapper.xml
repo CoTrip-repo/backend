@@ -190,4 +190,33 @@
           AND deleted_at IS NULL
     </update>
 
+    <!-- 인기 여행지 조회 (Fallback용) -->
+    <select id="findPopularAttractions"
+            parameterType="map"
+            resultType="com.ssafy.cotrip.api.attraction.dto.response.AttractionDto">
+        SELECT
+            a.id,
+            a.content_id,
+            ct.content_type_name AS contentTypeName,
+            a.title,
+            a.image1,
+            a.image2,
+            a.map_level,
+            a.latitude,
+            a.longitude,
+            a.tel,
+            a.addr1,
+            a.addr2,
+            a.homepage,
+            a.overview
+        FROM attractions a
+                 LEFT JOIN content_types ct ON a.content_type_id = ct.id
+        WHERE a.content_type_id = 1
+          AND a.image1 IS NOT NULL
+          AND a.overview IS NOT NULL
+          AND a.deleted_at IS NULL
+        ORDER BY RAND()
+            LIMIT #{limit}
+    </select>
+
 </mapper>

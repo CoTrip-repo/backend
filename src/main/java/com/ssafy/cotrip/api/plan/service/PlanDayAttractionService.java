@@ -106,7 +106,6 @@ public class PlanDayAttractionService {
         // 카카오 장소 데이터가 있으면 DB에 저장하거나 기존 ID 가져오기
         Long finalAttractionId = newAttractionId;
         if (kakaoPlaceData != null) {
-            log.info("🔍 카카오 장소 데이터로 Attraction 찾기/생성 시작");
             // Map을 KakaoPlaceData DTO로 변환
             AddAttractionRequestDto.KakaoPlaceData kakaoData = new AddAttractionRequestDto.KakaoPlaceData(
                     (String) kakaoPlaceData.get("id"),

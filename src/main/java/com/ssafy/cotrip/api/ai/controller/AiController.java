@@ -46,7 +46,7 @@ public class AiController {
             @RequestBody @Valid CategoryUpdateDto request) {
 
         if (apiKey == null || apiKey.isEmpty()) {
-            log.warn("Missing API key for category update callback");
+            log.warn("Missing API key");
         }
 
         log.info("Received AI classification for attractionId={}: categoryId={}",

@@ -39,4 +39,6 @@ public interface AttractionMapper {
     // AI 카테고리 업데이트
     void updateContentType(@Param("attractionId") Long attractionId, @Param("contentTypeId") Long contentTypeId);
 
+    // 인기 여행지 조회 (Fallback용)
+    List<AttractionDto> findPopularAttractions(@Param("limit") int limit);
 }
