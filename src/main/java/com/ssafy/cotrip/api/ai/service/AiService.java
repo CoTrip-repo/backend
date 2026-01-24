@@ -72,12 +72,15 @@ public class AiService {
     }
 
     public Object getAiRecommendationsFallback(Long planId, int maxResults, Long userId, Throwable ex) {
-        log.warn("⚡ Circuit Breaker Fallback 호출 - planId: {}, error: {}", planId, ex.getMessage());
+        log.warn("Circuit Breaker Fallback 호출 - planId: {}, error: {}", planId, ex.getMessage());
+
+        // 인기 여행지 조회 (이미지와 설명이 있는 관광지 랜덤 조회)
+        List<?> popularAttractions = attractionMapper.findPopularAttractions(maxResults);
 
         return Map.of(
-                "recommendations", Collections.emptyList(),
+                "recommendations", popularAttractions,
                 "fallback", true,
-                "message", "AI 추천 서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해주세요.",
+                "message", "AI 추천 서비스를 일시적으로 사용할 수 없어 랜덤으로 여행지를 추천해드립니다.",
                 "planId", planId);
     }
 
