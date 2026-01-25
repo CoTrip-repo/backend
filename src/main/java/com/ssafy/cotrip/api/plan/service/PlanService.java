@@ -16,6 +16,7 @@ import com.ssafy.cotrip.domain.Plan;
 import com.ssafy.cotrip.domain.PlanDay;
 import com.ssafy.cotrip.domain.PlanParticipant;
 import com.ssafy.cotrip.domain.User;
+import com.ssafy.cotrip.global.annotation.RequirePlanMembership;
 import com.ssafy.cotrip.global.util.SliceResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,8 +24,11 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ssafy.cotrip.api.plan.dto.response.PlanDayAttractionResponseDto;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -167,12 +171,12 @@ public class PlanService {
     }
 
     @Transactional
+    @RequirePlanMembership
     public void leavePlan(Long planId, Long userId) {
-        // 리더 제외한 참여잔지 확인
         Plan plan = planMapper.findByPlanId(planId);
-        boolean exist = planParticipantMapper.existsByPlanIdAndUserId(planId, userId);
-        if (!exist || plan.getLeaderId().equals(userId)) {
-            throw new PlanHandler(ErrorStatus._FORBIDDEN, "리더 제외한 사용자만 방을 나갈 수 있습니다.");
+
+        if (plan.getLeaderId().equals(userId)) {
+            throw new PlanHandler(ErrorStatus._FORBIDDEN, "리더는 방을 나갈 수 없습니다. (방 삭제 권장)");
         }
 
         // 소딜 - 특정 사용자만 삭제
@@ -226,11 +230,8 @@ public class PlanService {
                 .build();
     }
 
+    @RequirePlanMembership
     public GetPlanResponseDto getPlan(Long planId, Long userId) {
-        boolean exist = planParticipantMapper.existsByPlanIdAndUserId(planId, userId);
-        if (!exist) {
-            throw new PlanHandler(ErrorStatus._FORBIDDEN);
-        }
         Plan plan = planMapper.findByPlanId(planId);
 
         // user랑 조인해서 user 객체들 가져오기
@@ -247,12 +248,21 @@ public class PlanService {
         // PlanDay 및 Attraction 목록 조회
         List<PlanDay> planDays = planDayMapper.findByPlanId(planId);
 
+        // N+1 문제 해결: 모든 PlanDay ID 수집
+        List<Long> planDayIds = planDays.stream()
+                .map(PlanDay::getId)
+                .toList();
+
+        // 한 번의 쿼리로 모든 관광지 조회 후 Map으로 그룹핑
+        Map<Long, List<PlanDayAttractionResponseDto>> attractionMap = planDayAttractionService
+                .getAttractionsMapByPlanDayIds(planDayIds);
+
         List<GetPlanResponseDto.PlanDayWithAttractions> dayDtos = planDays.stream()
                 .map(day -> GetPlanResponseDto.PlanDayWithAttractions.builder()
                         .planDayId(day.getId())
                         .day(day.getDay())
                         .date(day.getDate())
-                        .attractions(planDayAttractionService.getAttractionsByPlanDay(day.getId()))
+                        .attractions(attractionMap.getOrDefault(day.getId(), Collections.emptyList()))
                         .build())
                 .toList();
 
@@ -267,15 +277,5 @@ public class PlanService {
                 .users(userDtos)
                 .days(dayDtos)
                 .build();
-    }
-
-    /**
-     * Plan 멤버십 확인 (권한 체크)
-     */
-    public void verifyMembership(Long planId, Long userId) {
-        boolean exist = planParticipantMapper.existsByPlanIdAndUserId(planId, userId);
-        if (!exist) {
-            throw new PlanHandler(ErrorStatus._FORBIDDEN, "Plan 멤버만 접근할 수 있습니다.");
-        }
     }
 }
