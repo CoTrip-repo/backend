@@ -51,6 +51,22 @@
         ORDER BY pda.time ASC
     </select>
 
+    <select id="findAllByPlanDayIds" resultType="PlanDayAttraction">
+        SELECT pda.*, 
+               a.title as attractionTitle,
+               a.latitude as latitude,
+               a.longitude as longitude,
+               a.addr1 as addr1
+        FROM planday_attractions pda
+        LEFT JOIN attractions a ON pda.attraction_id = a.id
+        WHERE pda.planday_id IN
+        <foreach item="item" index="index" collection="planDayIds" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+          AND pda.deleted_at IS NULL
+        ORDER BY pda.planday_id ASC, pda.time ASC
+    </select>
+
     <select id="existsByPlanDayIdAndTime" resultType="boolean">
         SELECT COUNT(*) > 0
         FROM planday_attractions

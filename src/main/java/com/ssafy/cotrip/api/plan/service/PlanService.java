@@ -24,8 +24,11 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ssafy.cotrip.api.plan.dto.response.PlanDayAttractionResponseDto;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -245,12 +248,21 @@ public class PlanService {
         // PlanDay 및 Attraction 목록 조회
         List<PlanDay> planDays = planDayMapper.findByPlanId(planId);
 
+        // N+1 문제 해결: 모든 PlanDay ID 수집
+        List<Long> planDayIds = planDays.stream()
+                .map(PlanDay::getId)
+                .toList();
+
+        // 한 번의 쿼리로 모든 관광지 조회 후 Map으로 그룹핑
+        Map<Long, List<PlanDayAttractionResponseDto>> attractionMap = planDayAttractionService
+                .getAttractionsMapByPlanDayIds(planDayIds);
+
         List<GetPlanResponseDto.PlanDayWithAttractions> dayDtos = planDays.stream()
                 .map(day -> GetPlanResponseDto.PlanDayWithAttractions.builder()
                         .planDayId(day.getId())
                         .day(day.getDay())
                         .date(day.getDate())
-                        .attractions(planDayAttractionService.getAttractionsByPlanDay(day.getId()))
+                        .attractions(attractionMap.getOrDefault(day.getId(), Collections.emptyList()))
                         .build())
                 .toList();
 

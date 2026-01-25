@@ -16,6 +16,8 @@ public interface PlanDayAttractionMapper {
 
     List<PlanDayAttraction> findByPlanDayId(Long planDayId);
 
+    List<PlanDayAttraction> findAllByPlanDayIds(@Param("planDayIds") List<Long> planDayIds);
+
     boolean existsByPlanDayIdAndTime(
             @Param("planDayId") Long planDayId,
             @Param("time") String time,

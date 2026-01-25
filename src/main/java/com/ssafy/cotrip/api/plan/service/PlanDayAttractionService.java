@@ -152,6 +152,18 @@ public class PlanDayAttractionService {
                 .collect(Collectors.toList());
     }
 
+    public Map<Long, List<PlanDayAttractionResponseDto>> getAttractionsMapByPlanDayIds(List<Long> planDayIds) {
+        if (planDayIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<PlanDayAttraction> attractions = planDayAttractionMapper.findAllByPlanDayIds(planDayIds);
+
+        return attractions.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.groupingBy(PlanDayAttractionResponseDto::planDayId));
+    }
+
     private PlanDayAttractionResponseDto convertToDto(PlanDayAttraction planDayAttraction) {
         return PlanDayAttractionResponseDto.builder()
                 .id(planDayAttraction.getId())
