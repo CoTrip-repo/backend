@@ -1,12 +1,11 @@
 package com.ssafy.cotrip.api.ai.service;
 
 import com.ssafy.cotrip.api.ai.dto.CategoryUpdateDto;
+import com.ssafy.cotrip.global.annotation.RequirePlanMembership;
 import com.ssafy.cotrip.api.attraction.repository.AttractionMapper;
 import com.ssafy.cotrip.api.chat.service.ChatService;
-import com.ssafy.cotrip.api.plan.repository.PlanParticipantMapper;
 import com.ssafy.cotrip.apiPayload.code.status.ErrorStatus;
 import com.ssafy.cotrip.apiPayload.exception.handler.AiHandler;
-import com.ssafy.cotrip.apiPayload.exception.handler.PlanHandler;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -31,22 +29,19 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AiService {
 
-    private final PlanParticipantMapper planParticipantMapper;
     private final AttractionMapper attractionMapper;
     private final ChatService chatService;
     private final RestClient restClient;
     private final WebClient webClient;
 
+    @RequirePlanMembership
     @CircuitBreaker(name = "aiServer", fallbackMethod = "getAiRecommendationsFallback")
     @Retry(name = "aiServer")
     public Object getAiRecommendations(Long planId, int maxResults, Long userId) {
-        // 1. Plan 멤버십 확인
-        verifyMembership(planId, userId);
-
-        // 2. 채팅 기록 조회
+        // 채팅 기록 조회
         List<?> chatHistory = chatService.getChatHistoryForAi(planId, 500);
 
-        // 3. AI 서버 요청 생성
+        // AI 서버 요청 생성
         Map<String, Object> request = Map.of(
                 "plan_id", planId,
                 "chat_history", chatHistory,
@@ -106,13 +101,6 @@ public class AiService {
         } catch (Exception e) {
             log.error("Failed to update category for attractionId: {}", attractionId, e);
             throw e;
-        }
-    }
-
-    private void verifyMembership(Long planId, Long userId) {
-        boolean exist = planParticipantMapper.existsByPlanIdAndUserId(planId, userId);
-        if (!exist) {
-            throw new PlanHandler(ErrorStatus._FORBIDDEN, "Plan 멤버만 접근할 수 있습니다.");
         }
     }
 }
