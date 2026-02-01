@@ -68,7 +68,9 @@ public class SecurityConfig {
                                 "/api/v*/attractions/**",
                                 "/api/v*/posts/recent",
                                 "/api/v*/ai/**",
-                                "/api/v*/attractions/*/ai-classification").permitAll()
+                                "/api/v*/attractions/*/ai-classification",
+                                "/actuator/**",
+                                "/api/test/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 // OAuth2 로그인 설정
