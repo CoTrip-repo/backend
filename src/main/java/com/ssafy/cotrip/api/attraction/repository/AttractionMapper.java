@@ -39,6 +39,12 @@ public interface AttractionMapper {
     // AI 카테고리 업데이트
     void updateContentType(@Param("attractionId") Long attractionId, @Param("contentTypeId") Long contentTypeId);
 
-    // 인기 여행지 조회 (Fallback용)
+    // 인기 여행지 조회 (Fallback용) - before refactoring
     List<AttractionDto> findPopularAttractions(@Param("limit") int limit);
+
+    // Fallback 최적화용: 후보 ID 목록 조회
+    List<Long> findCandidateAttractionIds();
+
+    // Fallback 최적화용: ID 목록으로 상세 조회
+    List<AttractionDto> findAttractionsByIds(@Param("ids") List<Long> ids);
 }
